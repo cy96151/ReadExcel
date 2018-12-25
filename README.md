@@ -116,7 +116,7 @@ ReadExcelBase base = ReadExcelBase.create(inputStream, new Test());
 　　目前读取过程中能获取的属性如下：
 
 属性 | 方法 | 说明 
-- | :-: | -: 
+--- | --- | --- 
 sheetName | (String) base.getSheetName()| 获取当前sheet页名称
 sheetIndex | (int) base.getSheetIndex() | 获取当前sheet页下标
 curRow |(int) base.getCurRow()| 获取当前行号
