@@ -21,7 +21,7 @@
 
 
 ## 使用方法
-工具的使用十分简单，只需定义好回调接口，然后将需读取的文件流初始化，触发读取操作即可。下面一个简单的Demo来演示这个操作
+　　工具的使用十分简单，只需定义好回调接口，然后将需读取的文件流初始化，触发读取操作即可。下面一个简单的Demo来演示这个操作
 ### 示例
 ``` java
 package cn.cy.test;
@@ -53,7 +53,7 @@ public class Test implements ReadExcelRollBack {
 }
 ```
 
-Test类实现了ReadExcelRollBack接口，当创建读取时，须将该对象的实例传入，以供回调。
+　　Test类实现了ReadExcelRollBack接口，当创建读取时，须将该对象的实例传入，以供回调。
 
 ### 回调接口
 
@@ -71,13 +71,18 @@ Test类实现了ReadExcelRollBack接口，当创建读取时，须将该对象�
  */
 void optRows(List<String> rowlist, int curRow, String sheetName, ReadExcelBase base) throws Exception;
 ```
-当每读取一行数据时，均会调用此方法。每行数据将会已String的形式保存在`rowlist`对象中。同时附带当前读取的相关属性，也可通过`数据基类base`获取其他当前数据。
-在处理`rowlist`时，有以下注意事项：
+　　当每读取一行数据时，均会调用此方法。每行数据将会已String的形式保存在`rowlist`对象中。同时附带当前读取的相关属性，也可通过`数据基类base`获取其他当前数据。
 
-1. `rowlist`数据下标与列号一致，若无数据则以`null`填充位置。`rowlist`的长度取决于最后一列有效值。
-2. Excel中的数值单元格若精度过高，读取到的文本将会使用科学计数法，会造成精度丢失（Excel本身也有这个问题，大概能保存15-16位长度的数值）
-3. 日期单元格读取后将会取到一个浮点数，其中整数部分表示1900年后到给定日期的天数，小数部分表示时分秒。`rowlist`中存放的是浮点数文本，可采用`org.apache.poi.ss.usermodel.DateUtil.getJavaDate`方法进行转换获取Date对象。
-4. 在处理`rowlist`时，建议对空行进行特殊处理
+　　在处理`rowlist`时，有以下注意事项：
+
+　　1. `rowlist`数据下标与列号一致，若无数据则以`null`填充位置。`rowlist`的长度取决于最后一列有效值。
+
+　　2. Excel中的数值单元格若精度过高，读取到的文本将会使用科学计数法，会造成精度丢失（Excel本身也有这个问题，大概能保存15-16位长度的数值）
+
+　　3. 日期单元格读取后将会取到一个浮点数，其中整数部分表示1900年后到给定日期的天数，小数部分表示时分秒。`rowlist`中存放的是浮点数文本，可采用`org.apache.poi.ss.usermodel.DateUtil.getJavaDate`方法进行转换获取Date对象。
+
+　　4. 在处理`rowlist`时，建议对空行进行特殊处理
+
 
 * 当前Sheet是否读取（judgeBreakSheet）
 
@@ -93,9 +98,57 @@ boolean judgeBreakSheet(String sheetName, ReadExcelBase base);
 ```
 每读取一个Sheet页前，将会调用此方法，可根据sheetName和中的其他属性进行判断。
 
-若返回true，则跳过此Sheet页的读取。
-若返回false，则正常读取此Sheet页的内容
+　　若返回true，则跳过此Sheet页的读取。
+
+　　若返回false，则正常读取此Sheet页的内容
+
 ### 数据基类
+
+当执行此行代码时，将会创建一个数据基类 ReadExcelBase
+
+``` java
+ReadExcelBase base = ReadExcelBase.create(inputStream, new Test());
+```
+　　在文件读取中，相关读取信息会保存在基类对象属性中。在回调方法里可通过`base.getXXX`的方式获取相关属性。
+
+　　也可自行添加需要的属性，以供在回调方法中使用。
+
+　　目前读取过程中能获取的属性如下：
+
+属性 | 方法 | 说明 
+- | :-: | -: 
+sheetName | (String) base.getSheetName()| 获取当前sheet页名称
+sheetIndex | (int) base.getSheetIndex() | 获取当前sheet页下标
+curRow |(int) base.getCurRow()| 获取当前行号
+
 ### 读取终止
+
+　　由于采用事件驱动读取文件，在默认情况下，只有文件内容全部读取完成，读取逻辑才会终止。若需在读取过程中手动终止，需在 `optRows` 方法中手动抛出异常。
+
+　　目前已封装了两个异常类：
+
+　　1. SheetContinueException
+
+　　　　若在读取过程中抛出此异常，则终止当前Sheet页信息的读取
+
+　　　　常用于读取指定行数据
+
+　　2. SheetBreakException
+
+　　　　若在读取过程中抛出此异常，则终止所有Sheet页信息的读取
+
+　　　　常用于手动停止读取数据
+
 ### 线程安全
+
+　　使用本工具时，针对每个文件流每次都会创建一个对象，无须担心线程安全问题。
+
+　　但使用回调对象时，若使用单例对象且存在类属性时，需考虑回调实例的线程安全问题。
+
 ## 注意事项
+
+1. 使用Excel创建的两种格式的文件均可以读取，但使用了`POI SXSSF`导出的Excel文件无法读取，原因是生成的ooxml内容格式不一致，需自行特殊处理。
+
+2. 对Sheet页中的空行，本工具大部分情况下都是直接略过的。但空行中若存在空白值单元格（如空格），本行数据仍会被读取。建议在`optRows`方法中再进行一次校验。
+
+3. 若有其他改进或补充，欢迎讨论。
